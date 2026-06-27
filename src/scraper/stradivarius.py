@@ -75,7 +75,11 @@ class StradivariusScraper:
                         response_time_ms=int((time.monotonic() - start) * 1000),
                     )
 
-                await asyncio.sleep(1)
+                # Wait for product API calls to complete; timeout is fine — use what arrived
+                try:
+                    await page.wait_for_load_state("networkidle", timeout=8_000)
+                except Exception:
+                    pass
 
                 in_stock, price, currency = parse_product_data(captured, page_html, product.size)
 
