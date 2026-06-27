@@ -48,6 +48,15 @@ class ProxyManager:
     def active(self) -> bool:
         return bool(self._proxies)
 
+    def next_raw(self) -> Optional[str]:
+        """Return next raw proxy URL string (no sticky session applied)."""
+        available = [p for p in self._proxies if p not in self._banned]
+        if not available:
+            return None
+        url = available[self._index % len(available)]
+        self._index += 1
+        return url
+
     def next(self) -> Optional[dict]:
         """Return next proxy config dict for Playwright, or None for direct."""
         available = [p for p in self._proxies if p not in self._banned]

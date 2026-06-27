@@ -18,7 +18,6 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from .proxy.manager import ProxyManager
 from .reporter.summary import generate_report, print_report
-from .scraper.browser import BrowserManager
 from .scraper.stradivarius import StradivariusScraper
 from .scraper.zara import ZaraScraper
 from .storage.db import init_db, insert_ban_event, insert_scrape_result, upsert_product
@@ -60,9 +59,9 @@ def load_products(path: Path) -> list[Product]:
     return products
 
 
-async def scrape_all(browser: BrowserManager, products: list[Product]) -> None:
-    zara_scraper = ZaraScraper(browser)
-    strad_scraper = StradivariusScraper(browser)
+async def scrape_all(proxy: ProxyManager, products: list[Product]) -> None:
+    zara_scraper = ZaraScraper(proxy)
+    strad_scraper = StradivariusScraper(proxy)
 
     log.info("=== Scrape run started: %d product-size pairs ===", len(products))
 
@@ -109,15 +108,13 @@ async def main() -> None:
         upsert_product(p)
 
     proxy = ProxyManager()
-    browser = BrowserManager(proxy)
-    await browser.start()
 
     scheduler = AsyncIOScheduler(timezone="UTC")
 
     # Fire first scrape immediately, then on interval
     scheduler.add_job(
         scrape_all,
-        args=[browser, products],
+        args=[proxy, products],
         trigger="interval",
         minutes=SCRAPE_INTERVAL_MINUTES,
         next_run_time=datetime.utcnow(),
@@ -149,7 +146,6 @@ async def main() -> None:
     await stop.wait()
 
     scheduler.shutdown(wait=False)
-    await browser.stop()
     log.info("Stopped cleanly.")
 
 
