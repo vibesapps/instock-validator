@@ -40,10 +40,15 @@ async def run():
         print(f"\nHTTP status: {resp.status if resp else 'None'}")
 
         try:
+            await page.wait_for_url(
+                lambda url: "bm-verify" not in url and "_sec" not in url,
+                timeout=20_000,
+            )
             await page.wait_for_load_state("networkidle", timeout=8_000)
         except Exception:
             pass
 
+        print(f"Final URL: {page.url}")
         html = await page.content()
 
     await browser.stop()

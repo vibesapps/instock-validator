@@ -49,6 +49,17 @@ class ZaraScraper:
 
                 resp = await page.goto(product.url, wait_until="domcontentloaded", timeout=30_000)
                 final_status = resp.status if resp else None
+
+                # Akamai interstitial: wait for JS challenge to solve and redirect to product page
+                try:
+                    await page.wait_for_url(
+                        lambda url: "bm-verify" not in url and "_sec" not in url,
+                        timeout=20_000,
+                    )
+                    await page.wait_for_load_state("networkidle", timeout=8_000)
+                except Exception:
+                    pass
+
                 page_html = await page.content()
 
                 if not ban_signal:
@@ -68,12 +79,6 @@ class ZaraScraper:
                         ban_signal=ban_signal,
                         response_time_ms=int((time.monotonic() - start) * 1000),
                     )
-
-                # Wait for product API calls to complete; timeout is fine — use what arrived
-                try:
-                    await page.wait_for_load_state("networkidle", timeout=8_000)
-                except Exception:
-                    pass
 
                 in_stock, price, currency = parse_product_data(captured, page_html, product.size)
 
