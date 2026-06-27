@@ -1,6 +1,7 @@
 import logging
 import os
 from typing import Optional
+from urllib.parse import urlparse
 
 log = logging.getLogger(__name__)
 
@@ -37,7 +38,14 @@ class ProxyManager:
             return None
         proxy_url = available[self._index % len(available)]
         self._index += 1
-        return {"server": proxy_url}
+
+        parsed = urlparse(proxy_url)
+        config: dict = {"server": f"{parsed.scheme}://{parsed.hostname}:{parsed.port}"}
+        if parsed.username:
+            config["username"] = parsed.username
+        if parsed.password:
+            config["password"] = parsed.password
+        return config
 
     def mark_banned(self, proxy_url: str) -> None:
         log.warning("Proxy banned, removing: %s", proxy_url)
