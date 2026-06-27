@@ -4,18 +4,17 @@ from contextlib import asynccontextmanager
 from typing import Optional, Tuple
 
 from playwright.async_api import async_playwright, Browser, BrowserContext, Page, Playwright
-from playwright_stealth import stealth_async
 
 from ..proxy.manager import ProxyManager
 
 log = logging.getLogger(__name__)
 
+# Firefox user agents — different TLS fingerprint than Chrome, less flagged by Akamai
 _USER_AGENTS = [
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:126.0) Gecko/20100101 Firefox/126.0",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:126.0) Gecko/20100101 Firefox/126.0",
+    "Mozilla/5.0 (X11; Linux x86_64; rv:126.0) Gecko/20100101 Firefox/126.0",
 ]
 
 _VIEWPORTS = [
@@ -27,30 +26,10 @@ _VIEWPORTS = [
 
 _STEALTH_SCRIPT = """
 Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
-Object.defineProperty(navigator, 'plugins', {
-    get: () => { const arr = [1,2,3,4,5]; arr.item = () => null; return arr; }
-});
 Object.defineProperty(navigator, 'languages', {
     get: () => ['tr-TR', 'tr', 'en-US', 'en']
 });
-window.chrome = { runtime: {}, loadTimes: () => {}, csi: () => {}, app: {} };
-const _originalQuery = window.navigator.permissions.query;
-window.navigator.permissions.query = (params) =>
-    params.name === 'notifications'
-        ? Promise.resolve({ state: Notification.permission })
-        : _originalQuery(params);
 """
-
-_LAUNCH_ARGS = [
-    "--no-sandbox",
-    "--disable-setuid-sandbox",
-    "--disable-dev-shm-usage",
-    "--disable-blink-features=AutomationControlled",
-    "--disable-features=IsolateOrigins,site-per-process",
-    "--disable-extensions",
-    "--disable-gpu",
-    "--js-flags=--max-old-space-size=256",
-]
 
 # Block these resource types to reduce memory pressure on 2GB VM
 _BLOCKED_RESOURCES = {"image", "media", "font"}
@@ -64,8 +43,8 @@ class BrowserManager:
 
     async def start(self) -> None:
         self._pw = await async_playwright().start()
-        self._browser = await self._pw.chromium.launch(headless=True, args=_LAUNCH_ARGS)
-        log.info("Chromium browser started")
+        self._browser = await self._pw.firefox.launch(headless=True)
+        log.info("Firefox browser started")
 
     async def stop(self) -> None:
         if self._browser:
@@ -84,7 +63,7 @@ class BrowserManager:
                 await self._browser.close()
         except Exception:
             pass
-        self._browser = await self._pw.chromium.launch(headless=True, args=_LAUNCH_ARGS)
+        self._browser = await self._pw.firefox.launch(headless=True)
         log.info("Browser restarted")
 
     async def _open_context_and_page(self) -> Tuple[BrowserContext, Page]:
@@ -108,7 +87,6 @@ class BrowserManager:
         await ctx.add_init_script(_STEALTH_SCRIPT)
 
         page: Page = await ctx.new_page()
-        await stealth_async(page)
 
         # Block images/fonts to keep memory low on 2GB VM
         await page.route(
@@ -121,10 +99,6 @@ class BrowserManager:
         await page.set_extra_http_headers({
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
             "Upgrade-Insecure-Requests": "1",
-            "Sec-Fetch-Dest": "document",
-            "Sec-Fetch-Mode": "navigate",
-            "Sec-Fetch-Site": "none",
-            "Sec-Fetch-User": "?1",
         })
         return ctx, page
 
