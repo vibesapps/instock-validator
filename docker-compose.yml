@@ -1,0 +1,25 @@
+version: "3.9"
+
+services:
+  instock-validator:
+    build: .
+    restart: unless-stopped
+    environment:
+      SCRAPE_INTERVAL_MINUTES: ${SCRAPE_INTERVAL_MINUTES:-30}
+      REPORT_INTERVAL_HOURS:   ${REPORT_INTERVAL_HOURS:-24}
+      MIN_DELAY_SECONDS:       ${MIN_DELAY_SECONDS:-8}
+      MAX_DELAY_SECONDS:       ${MAX_DELAY_SECONDS:-20}
+      # Leave empty to run without proxies; fill in when needed:
+      PROXY_LIST:              ${PROXY_LIST:-}
+      CONFIG_PATH:             /app/config/products.yml
+    volumes:
+      - ./data:/app/data          # SQLite + logs + reports persisted on host
+      - ./config:/app/config      # product list editable without rebuild
+    shm_size: "256mb"             # Chromium needs shared memory
+    mem_limit: "850m"
+    memswap_limit: "2g"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"

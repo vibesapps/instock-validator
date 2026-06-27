@@ -1,0 +1,48 @@
+# instock.ai — İzleme Listesi
+# Her ürün için sizes altına takip edilecek bedenleri yaz.
+# URL'leri gerçek ürün sayfası URL'leriyle değiştir.
+# Değiştirdikten sonra servisi yeniden başlatmana gerek yok — docker-compose restart instock-validator
+
+products:
+
+  # ── Zara ──────────────────────────────────────────────────────────────────
+  - name: "Zara Oversized Blazer"
+    brand: zara
+    url: "https://www.zara.com/tr/en/oversized-blazer-p08318704.html"
+    sizes: ["XS", "S", "M", "L", "XL"]
+
+  - name: "Zara Wide Leg Jeans"
+    brand: zara
+    url: "https://www.zara.com/tr/en/wide-leg-jeans-p01015102.html"
+    sizes: ["34", "36", "38", "40", "42"]
+
+  - name: "Zara Ribbed Knit Sweater"
+    brand: zara
+    url: "https://www.zara.com/tr/en/ribbed-knit-sweater-p08040510.html"
+    sizes: ["XS", "S", "M", "L"]
+
+  - name: "Zara Satin Slip Dress"
+    brand: zara
+    url: "https://www.zara.com/tr/en/satin-slip-dress-p07765070.html"
+    sizes: ["XS", "S", "M", "L"]
+
+  - name: "Zara Faux Leather Trousers"
+    brand: zara
+    url: "https://www.zara.com/tr/en/faux-leather-trousers-p02043085.html"
+    sizes: ["36", "38", "40", "42"]
+
+  # ── Stradivarius ──────────────────────────────────────────────────────────
+  - name: "Stradivarius Floral Midi Dress"
+    brand: stradivarius
+    url: "https://www.stradivarius.com/tr/cicekli-midi-elbise-l00000000000000000.html"
+    sizes: ["XS", "S", "M", "L"]
+
+  - name: "Stradivarius Mom Fit Jeans"
+    brand: stradivarius
+    url: "https://www.stradivarius.com/tr/mom-fit-jean-l00000000000000000.html"
+    sizes: ["34", "36", "38", "40"]
+
+  - name: "Stradivarius Knit Cardigan"
+    brand: stradivarius
+    url: "https://www.stradivarius.com/tr/orgu-hırka-l00000000000000000.html"
+    sizes: ["XS", "S", "M", "L"]
