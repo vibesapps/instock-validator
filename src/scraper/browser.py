@@ -62,7 +62,6 @@ class BrowserManager:
                 # Low-memory optimizations for 1 GB RAM instances
                 "--disable-gpu",
                 "--no-zygote",
-                "--renderer-process-limit=1",
                 "--js-flags=--max-old-space-size=256",
             ],
         )
@@ -75,6 +74,30 @@ class BrowserManager:
             await self._pw.stop()
         log.info("Browser stopped")
 
+    async def _ensure_alive(self) -> None:
+        if self._browser and self._browser.is_connected():
+            return
+        log.warning("Browser disconnected — restarting")
+        try:
+            if self._browser:
+                await self._browser.close()
+        except Exception:
+            pass
+        self._browser = await self._pw.chromium.launch(
+            headless=True,
+            args=[
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-blink-features=AutomationControlled",
+                "--disable-features=IsolateOrigins,site-per-process",
+                "--disable-extensions",
+                "--disable-gpu",
+                "--no-zygote",
+                "--js-flags=--max-old-space-size=256",
+            ],
+        )
+        log.info("Browser restarted")
+
     @asynccontextmanager
     async def new_page(self):
         """Yield a stealth-configured Page with randomised UA/viewport/proxy."""
@@ -82,6 +105,7 @@ class BrowserManager:
         vp = random.choice(_VIEWPORTS)
         proxy = self._proxy.next()
 
+        await self._ensure_alive()
         ctx: BrowserContext = await self._browser.new_context(
             user_agent=ua,
             viewport=vp,
