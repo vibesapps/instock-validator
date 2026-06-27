@@ -97,6 +97,7 @@ class BrowserManager:
             locale="tr-TR",
             timezone_id="Europe/Istanbul",
             proxy=proxy,
+            ignore_https_errors=True,
             extra_http_headers={
                 "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7",
                 "Accept-Encoding": "gzip, deflate, br",
