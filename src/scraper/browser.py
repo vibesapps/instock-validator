@@ -61,7 +61,7 @@ class BrowserManager:
                 "--disable-extensions",
                 # Low-memory optimizations for 1 GB RAM instances
                 "--disable-gpu",
-                "--single-process",
+                "--no-zygote",
                 "--renderer-process-limit=1",
                 "--js-flags=--max-old-space-size=256",
             ],
