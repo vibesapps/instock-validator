@@ -116,7 +116,8 @@ async def main() -> None:
 
     # Fire first scrape immediately, then on interval
     scheduler.add_job(
-        lambda: asyncio.create_task(scrape_all(browser, products)),
+        scrape_all,
+        args=[browser, products],
         trigger="interval",
         minutes=SCRAPE_INTERVAL_MINUTES,
         next_run_time=datetime.utcnow(),
