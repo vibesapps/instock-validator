@@ -35,6 +35,12 @@ async def run():
             pass
 
     async with browser.new_page() as page:
+        # Warmup: visit homepage to seed Akamai session cookies before product page
+        print("Warmup: fetching homepage...")
+        await page.goto("https://www.zara.com/tr/tr/", wait_until="domcontentloaded", timeout=20_000)
+        await asyncio.sleep(3)
+        print(f"Warmup URL: {page.url}")
+
         page.on("response", on_response)
         resp = await page.goto(TEST_URL, wait_until="domcontentloaded", timeout=30_000)
         print(f"\nHTTP status: {resp.status if resp else 'None'}")

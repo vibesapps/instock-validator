@@ -88,14 +88,6 @@ class BrowserManager:
 
         page: Page = await ctx.new_page()
 
-        # Block images/fonts to keep memory low on 2GB VM
-        await page.route(
-            "**/*",
-            lambda route: route.abort()
-            if route.request.resource_type in _BLOCKED_RESOURCES
-            else route.continue_(),
-        )
-
         await page.set_extra_http_headers({
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
             "Upgrade-Insecure-Requests": "1",
