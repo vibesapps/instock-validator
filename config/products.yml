@@ -34,9 +34,7 @@ products:
     url: "https://www.stradivarius.com/tr/dugmeli-dokumlu-gomlek-l06226969?colorId=430"
     sizes: ["XS", "S", "M", "L"]
 
-  # NOT: Stradivarius 3. ürün bir kategori sayfasıydı, ürün sayfasıyla değiştir.
-  # Sweatshirt ürün sayfasından URL kopyalayıp buraya yapıştır:
-  - name: "Stradivarius Sweatshirt — URL GEREKLİ"
+  - name: "Stradivarius Yumuşak Dokulu Fermuarlı Sweatshirt"
     brand: stradivarius
-    url: "https://www.stradivarius.com/tr/BURAYA_SWEATSHIRT_URUN_URL"
+    url: "https://www.stradivarius.com/tr/yumusak-dokulu-fermuarl%C4%B1-sweatshirt-l08728276?colorId=011"
     sizes: ["XS", "S", "M", "L"]
