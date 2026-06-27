@@ -88,14 +88,11 @@ async def test_zara_api():
     print("TEST 2: Zara extra-info API (httpx + proxy)")
     print("══════════════════════════════════════════")
 
-    proxy_url = os.getenv("BRIGHTDATA_URL", "")
+    proxy_url = os.getenv("PROXY_LIST", "").split(",")[0].strip()
     if not proxy_url:
-        # Build from .env parts
-        user = os.getenv("BRIGHTDATA_USER", "")
-        pwd  = os.getenv("BRIGHTDATA_PASS", "")
-        host = os.getenv("BRIGHTDATA_HOST", "brd.superproxy.io")
-        port = os.getenv("BRIGHTDATA_PORT", "33335")
-        proxy_url = f"http://{user}:{pwd}@{host}:{port}"
+        print("PROXY_LIST boş — proxy yok, direkt bağlantı deneniyor")
+    else:
+        print(f"Proxy: {proxy_url[:40]}...")
 
     api_url = (
         f"https://www.zara.com/tr/tr/product/{ZARA_PID}/extra-info"

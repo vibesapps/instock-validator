@@ -1,9 +1,26 @@
 import logging
 import os
+import random
+import string
 from typing import Optional
 from urllib.parse import urlparse
 
 log = logging.getLogger(__name__)
+
+
+def _make_sticky(proxy_url: str) -> str:
+    """Inject a random session ID into a BrightData proxy URL to pin the exit IP.
+
+    Akamai's bm-verify token is bound to the originating IP. Without sticky
+    sessions, BrightData assigns a new IP per TCP connection, so the meta-refresh
+    round-trip comes from a different IP and the token is rejected → infinite loop.
+    """
+    parsed = urlparse(proxy_url)
+    if not parsed.username or "session-" in parsed.username:
+        return proxy_url
+    session_id = "".join(random.choices(string.ascii_lowercase + string.digits, k=10))
+    new_user = f"{parsed.username}-session-{session_id}"
+    return f"{parsed.scheme}://{new_user}:{parsed.password}@{parsed.hostname}:{parsed.port}"
 
 
 class ProxyManager:
@@ -38,6 +55,9 @@ class ProxyManager:
             return None
         proxy_url = available[self._index % len(available)]
         self._index += 1
+
+        # Pin each browser context to one exit IP so Akamai challenge round-trips work
+        proxy_url = _make_sticky(proxy_url)
 
         parsed = urlparse(proxy_url)
         config: dict = {"server": f"{parsed.scheme}://{parsed.hostname}:{parsed.port}"}
