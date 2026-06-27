@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from typing import Optional, Tuple
 
 from playwright.async_api import async_playwright, Browser, BrowserContext, Page, Playwright
+from playwright_stealth import stealth_async
 
 from ..proxy.manager import ProxyManager
 
@@ -107,6 +108,7 @@ class BrowserManager:
         await ctx.add_init_script(_STEALTH_SCRIPT)
 
         page: Page = await ctx.new_page()
+        await stealth_async(page)
 
         # Block images/fonts to keep memory low on 2GB VM
         await page.route(
