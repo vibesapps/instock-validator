@@ -1,7 +1,7 @@
 import logging
 import random
 from contextlib import asynccontextmanager
-from typing import Optional
+from typing import Optional, Tuple
 
 from playwright.async_api import async_playwright, Browser, BrowserContext, Page, Playwright
 
@@ -24,8 +24,6 @@ _VIEWPORTS = [
     {"width": 1366, "height": 768},
 ]
 
-# Injected into every page context before any script runs.
-# Removes the most common headless browser fingerprints detected by Akamai/PerimeterX.
 _STEALTH_SCRIPT = """
 Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
 Object.defineProperty(navigator, 'plugins', {
@@ -42,6 +40,20 @@ window.navigator.permissions.query = (params) =>
         : _originalQuery(params);
 """
 
+_LAUNCH_ARGS = [
+    "--no-sandbox",
+    "--disable-setuid-sandbox",
+    "--disable-dev-shm-usage",
+    "--disable-blink-features=AutomationControlled",
+    "--disable-features=IsolateOrigins,site-per-process",
+    "--disable-extensions",
+    "--disable-gpu",
+    "--js-flags=--max-old-space-size=256",
+]
+
+# Block these resource types to reduce memory pressure on 2GB VM
+_BLOCKED_RESOURCES = {"image", "media", "font"}
+
 
 class BrowserManager:
     def __init__(self, proxy_manager: Optional[ProxyManager] = None) -> None:
@@ -51,61 +63,34 @@ class BrowserManager:
 
     async def start(self) -> None:
         self._pw = await async_playwright().start()
-        self._browser = await self._pw.chromium.launch(
-            headless=True,
-            args=[
-                "--no-sandbox",
-                "--disable-dev-shm-usage",
-                "--disable-blink-features=AutomationControlled",
-                "--disable-features=IsolateOrigins,site-per-process",
-                "--disable-extensions",
-                # Low-memory optimizations for 1 GB RAM instances
-                "--disable-gpu",
-                "--no-zygote",
-                "--js-flags=--max-old-space-size=256",
-            ],
-        )
+        self._browser = await self._pw.chromium.launch(headless=True, args=_LAUNCH_ARGS)
         log.info("Chromium browser started")
 
     async def stop(self) -> None:
         if self._browser:
-            await self._browser.close()
+            try:
+                await self._browser.close()
+            except Exception:
+                pass
         if self._pw:
             await self._pw.stop()
         log.info("Browser stopped")
 
-    async def _ensure_alive(self) -> None:
-        if self._browser and self._browser.is_connected():
-            return
-        log.warning("Browser disconnected — restarting")
+    async def _restart(self) -> None:
+        log.warning("Browser crash detected — restarting")
         try:
             if self._browser:
                 await self._browser.close()
         except Exception:
             pass
-        self._browser = await self._pw.chromium.launch(
-            headless=True,
-            args=[
-                "--no-sandbox",
-                "--disable-dev-shm-usage",
-                "--disable-blink-features=AutomationControlled",
-                "--disable-features=IsolateOrigins,site-per-process",
-                "--disable-extensions",
-                "--disable-gpu",
-                "--no-zygote",
-                "--js-flags=--max-old-space-size=256",
-            ],
-        )
+        self._browser = await self._pw.chromium.launch(headless=True, args=_LAUNCH_ARGS)
         log.info("Browser restarted")
 
-    @asynccontextmanager
-    async def new_page(self):
-        """Yield a stealth-configured Page with randomised UA/viewport/proxy."""
+    async def _open_context_and_page(self) -> Tuple[BrowserContext, Page]:
         ua = random.choice(_USER_AGENTS)
         vp = random.choice(_VIEWPORTS)
         proxy = self._proxy.next()
 
-        await self._ensure_alive()
         ctx: BrowserContext = await self._browser.new_context(
             user_agent=ua,
             viewport=vp,
@@ -121,6 +106,15 @@ class BrowserManager:
         await ctx.add_init_script(_STEALTH_SCRIPT)
 
         page: Page = await ctx.new_page()
+
+        # Block images/fonts to keep memory low on 2GB VM
+        await page.route(
+            "**/*",
+            lambda route: route.abort()
+            if route.request.resource_type in _BLOCKED_RESOURCES
+            else route.continue_(),
+        )
+
         await page.set_extra_http_headers({
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
             "Upgrade-Insecure-Requests": "1",
@@ -129,8 +123,32 @@ class BrowserManager:
             "Sec-Fetch-Site": "none",
             "Sec-Fetch-User": "?1",
         })
+        return ctx, page
+
+    @asynccontextmanager
+    async def new_page(self):
+        """Yield a stealth-configured Page. Restarts browser once on crash."""
+        ctx = None
+        for attempt in range(2):
+            try:
+                ctx, page = await self._open_context_and_page()
+                break
+            except Exception as exc:
+                if ctx:
+                    try:
+                        await ctx.close()
+                    except Exception:
+                        pass
+                    ctx = None
+                if attempt == 0 and any(w in str(exc).lower() for w in ("closed", "crash", "disconnect", "connect")):
+                    await self._restart()
+                    continue
+                raise
 
         try:
             yield page
         finally:
-            await ctx.close()
+            try:
+                await ctx.close()
+            except Exception:
+                pass
