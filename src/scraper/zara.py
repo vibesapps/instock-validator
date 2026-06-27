@@ -50,13 +50,12 @@ class ZaraScraper:
                 resp = await page.goto(product.url, wait_until="domcontentloaded", timeout=30_000)
                 final_status = resp.status if resp else None
 
-                # Akamai interstitial: wait for JS challenge to solve and redirect to product page
+                # Akamai interstitial: wait for challenge to solve and product page to render
                 try:
-                    await page.wait_for_url(
-                        lambda url: "bm-verify" not in url and "_sec" not in url,
-                        timeout=20_000,
+                    await page.wait_for_selector(
+                        "h1, [data-qa-id], .product-detail-info",
+                        timeout=25_000,
                     )
-                    await page.wait_for_load_state("networkidle", timeout=8_000)
                 except Exception:
                     pass
 
