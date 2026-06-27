@@ -15,6 +15,8 @@ services:
     volumes:
       - ./data:/app/data          # SQLite + logs + reports persisted on host
       - ./config:/app/config      # product list editable without rebuild
+      - ./scripts:/app/scripts    # debug/report scripts — no rebuild needed
+      - ./src:/app/src            # scraper source — no rebuild needed
     shm_size: "256mb"             # Chromium needs shared memory
     mem_limit: "850m"
     memswap_limit: "2g"
