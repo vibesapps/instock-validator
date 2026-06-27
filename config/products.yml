@@ -1,48 +1,43 @@
 # instock.ai — İzleme Listesi
-# Her ürün için sizes altına takip edilecek bedenleri yaz.
-# URL'leri gerçek ürün sayfası URL'leriyle değiştir.
-# Değiştirdikten sonra servisi yeniden başlatmana gerek yok — docker-compose restart instock-validator
+# URL'leri Zara/Stradivarius'tan kopyala (ürün sayfasının adres çubuğundan).
+# Değiştirdikten sonra servisi yeniden başlatmana gerek yok:
+#   docker compose restart instock-validator
 
 products:
 
   # ── Zara ──────────────────────────────────────────────────────────────────
-  - name: "Zara Oversized Blazer"
-    brand: zara
-    url: "https://www.zara.com/tr/en/oversized-blazer-p08318704.html"
-    sizes: ["XS", "S", "M", "L", "XL"]
+  # URL formatı: https://www.zara.com/tr/en/urun-adi-pXXXXXXXX.html
+  # Örnek: https://www.zara.com/tr/en/floral-midi-dress-p02388128.html
 
-  - name: "Zara Wide Leg Jeans"
+  - name: "Zara Ürün 1"
     brand: zara
-    url: "https://www.zara.com/tr/en/wide-leg-jeans-p01015102.html"
-    sizes: ["34", "36", "38", "40", "42"]
-
-  - name: "Zara Ribbed Knit Sweater"
-    brand: zara
-    url: "https://www.zara.com/tr/en/ribbed-knit-sweater-p08040510.html"
+    url: "BURAYA_ZARA_URUN_URL_1"
     sizes: ["XS", "S", "M", "L"]
 
-  - name: "Zara Satin Slip Dress"
+  - name: "Zara Ürün 2"
     brand: zara
-    url: "https://www.zara.com/tr/en/satin-slip-dress-p07765070.html"
+    url: "BURAYA_ZARA_URUN_URL_2"
     sizes: ["XS", "S", "M", "L"]
 
-  - name: "Zara Faux Leather Trousers"
+  - name: "Zara Ürün 3"
     brand: zara
-    url: "https://www.zara.com/tr/en/faux-leather-trousers-p02043085.html"
-    sizes: ["36", "38", "40", "42"]
-
-  # ── Stradivarius ──────────────────────────────────────────────────────────
-  - name: "Stradivarius Floral Midi Dress"
-    brand: stradivarius
-    url: "https://www.stradivarius.com/tr/cicekli-midi-elbise-l00000000000000000.html"
-    sizes: ["XS", "S", "M", "L"]
-
-  - name: "Stradivarius Mom Fit Jeans"
-    brand: stradivarius
-    url: "https://www.stradivarius.com/tr/mom-fit-jean-l00000000000000000.html"
+    url: "BURAYA_ZARA_URUN_URL_3"
     sizes: ["34", "36", "38", "40"]
 
-  - name: "Stradivarius Knit Cardigan"
+  # ── Stradivarius ──────────────────────────────────────────────────────────
+  # URL formatı: https://www.stradivarius.com/tr/urun-adi-XXXXXXXXXXX.html
+
+  - name: "Stradivarius Ürün 1"
     brand: stradivarius
-    url: "https://www.stradivarius.com/tr/orgu-hırka-l00000000000000000.html"
+    url: "BURAYA_STRAD_URUN_URL_1"
     sizes: ["XS", "S", "M", "L"]
+
+  - name: "Stradivarius Ürün 2"
+    brand: stradivarius
+    url: "BURAYA_STRAD_URUN_URL_2"
+    sizes: ["XS", "S", "M", "L"]
+
+  - name: "Stradivarius Ürün 3"
+    brand: stradivarius
+    url: "BURAYA_STRAD_URUN_URL_3"
+    sizes: ["34", "36", "38", "40"]

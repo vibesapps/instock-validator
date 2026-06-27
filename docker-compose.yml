@@ -6,7 +6,7 @@ services:
     restart: unless-stopped
     environment:
       SCRAPE_INTERVAL_MINUTES: ${SCRAPE_INTERVAL_MINUTES:-30}
-      REPORT_INTERVAL_HOURS:   ${REPORT_INTERVAL_HOURS:-24}
+      REPORT_INTERVAL_HOURS:   ${REPORT_INTERVAL_HOURS:-6}
       MIN_DELAY_SECONDS:       ${MIN_DELAY_SECONDS:-8}
       MAX_DELAY_SECONDS:       ${MAX_DELAY_SECONDS:-20}
       # Leave empty to run without proxies; fill in when needed:
