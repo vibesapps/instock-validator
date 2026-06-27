@@ -1,13 +1,13 @@
 """
-Debug script v4: itxrest API brute-force — find working store IDs for
-Zara TR and Stradivarius TR. Browser approach is confirmed blocked
-(Akamai validates _sec/verify server-side, client tricks don't work).
-
+Debug script v5: httpx ile ürün sayfasını direkt çek.
+httpx istekleri Akamai interstitial almıyor — gerçek HTML geliyor.
+Next.js SSR HTML'de __NEXT_DATA__ veya JSON-LD içinde fiyat/stok var.
 Kullanım: python scripts/debug_scrape.py
 """
 import asyncio
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -19,179 +19,150 @@ except ImportError:
     print("httpx not installed")
     sys.exit(1)
 
-ZARA_PID   = "05388330"   # from URL: relaxed-fit-deri-ceket-p05388330.html
-STRAD_PID  = "6226969"    # from URL: dugmeli-dokumlu-gomlek-l06226969
-STRAD_URL  = "https://www.stradivarius.com/tr/dugmeli-dokumlu-gomlek-l06226969?colorId=045"
-ZARA_URL   = "https://www.zara.com/tr/tr/relaxed-fit-deri-ceket-p05388330.html"
+ZARA_URL  = "https://www.zara.com/tr/tr/relaxed-fit-deri-ceket-p05388330.html"
+STRAD_URL = "https://www.stradivarius.com/tr/dugmeli-dokumlu-gomlek-l06226969?colorId=045"
 
-_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:126.0) Gecko/20100101 Firefox/126.0"
-
-# Inditex brand store IDs to try for Turkey online store
-# (itxrest storeId = country market ID, negative languageId = tr)
-ZARA_STORE_IDS  = [11726, 10706, 3132, 25025, 13059, 11730, 11700, 26009, 2323, 1749]
-STRAD_STORE_IDS = [11726, 10706, 54016, 54018, 54010, 25025, 13059, 50005, 3132]
+_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:126.0) Gecko/20100101 Firefox/126.0",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7",
+    "Accept-Encoding": "gzip, deflate, br",
+    "DNT": "1",
+    "Upgrade-Insecure-Requests": "1",
+}
 
 
 def _proxy_dict() -> dict:
     proxy_url = os.getenv("PROXY_LIST", "").split(",")[0].strip()
-    if not proxy_url:
-        return {}
-    print(f"Proxy: {proxy_url[:50]}...")
-    return {"http://": proxy_url, "https://": proxy_url}
+    if proxy_url:
+        print(f"Proxy: {proxy_url[:60]}...")
+    return {"http://": proxy_url, "https://": proxy_url} if proxy_url else {}
 
 
-def _fmt_json(data) -> str:
-    """Short repr of a JSON value."""
-    if isinstance(data, dict):
-        return str({k: str(v)[:60] for k, v in data.items()})
-    return str(data)[:120]
+async def test_site(name: str, url: str, client: "httpx.AsyncClient") -> None:
+    print(f"\n══════════════════════════════════════════════════")
+    print(f"TEST: {name}")
+    print(f"══════════════════════════════════════════════════")
 
+    try:
+        r = await client.get(url, headers=_HEADERS)
+    except Exception as e:
+        print(f"Request error: {e}")
+        return
 
-async def test_zara_itxrest():
-    print("\n══════════════════════════════════════════════════")
-    print("TEST 1: Zara itxrest — find correct Turkey store ID")
-    print("══════════════════════════════════════════════════")
+    print(f"Status : {r.status_code}")
+    print(f"URL    : {str(r.url)[:90]}")
+    print(f"CT     : {r.headers.get('content-type', '?')}")
+    print(f"Size   : {len(r.text)} bytes")
 
-    proxy_dict = _proxy_dict()
-    headers = {
-        "User-Agent": _UA,
-        "Accept": "application/json, text/plain, */*",
-        "Accept-Language": "tr-TR,tr;q=0.9",
-        "Referer": ZARA_URL,
-    }
+    # Akamai interstitial check
+    if ("bm-verify" in r.text and "meta http-equiv" in r.text) or "_sec/verify" in r.text:
+        print("⚠ Akamai interstitial — httpx also blocked (unexpected)")
+        print(r.text[:400])
+        return
 
-    # Try two product ID formats: with and without leading zero
-    pid_variants = [ZARA_PID, ZARA_PID.lstrip("0")]
+    found_anything = False
 
-    async with httpx.AsyncClient(
-        proxies=proxy_dict or None,
-        verify=False,
-        timeout=30,
-        follow_redirects=True,
-    ) as client:
-        for store_id in ZARA_STORE_IDS:
-            for pid in pid_variants:
-                url = (
-                    f"https://www.zara.com/itxrest/2/catalog/store/{store_id}"
-                    f"/product/detail?physicalStoreId=null&productId={pid}&languageId=-39"
-                )
-                try:
-                    r = await client.get(url, headers=headers)
-                    ct = r.headers.get("content-type", "")
-                    if "json" in ct:
-                        try:
-                            body = r.json()
-                        except Exception:
-                            body = {"raw": r.text[:100]}
-                        status_mark = "✓" if r.status_code == 200 else f"✗({r.status_code})"
-                        print(f"  store={store_id} pid={pid}: {status_mark} → {_fmt_json(body)}")
-                        if r.status_code == 200:
-                            print(f"\n  *** FOUND WORKING CONFIG: store={store_id} pid={pid} ***")
-                            print(json.dumps(body, indent=2, ensure_ascii=False)[:2000])
-                            return  # stop on first success
-                    else:
-                        if r.status_code != 404:
-                            print(f"  store={store_id} pid={pid}: {r.status_code} {ct[:30]}")
-                except Exception as e:
-                    print(f"  store={store_id} pid={pid}: ERROR {e}")
+    # ── 1. Next.js __NEXT_DATA__ ─────────────────────────────────────────────
+    m = re.search(
+        r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>',
+        r.text, re.DOTALL,
+    )
+    if m:
+        found_anything = True
+        raw = m.group(1)
+        print(f"\n✓ __NEXT_DATA__ ({len(raw)} bytes)")
+        try:
+            nd = json.loads(raw)
+            page_props = nd.get("props", {}).get("pageProps", {})
+            print(f"  pageProps keys: {list(page_props.keys())[:20]}")
+            # Dump anything that looks like product/price/stock data
+            for k, v in page_props.items():
+                if isinstance(v, dict):
+                    sub = list(v.keys())
+                    if any(s in str(v).lower() for s in ("price", "stock", "availab", "size", "color")):
+                        print(f"  pageProps.{k} keys: {sub[:12]}")
+                        print(f"    {json.dumps(v, ensure_ascii=False)[:600]}")
+                elif isinstance(v, (str, int, float, bool)):
+                    if any(s in k.lower() for s in ("price", "stock", "availab")):
+                        print(f"  pageProps.{k} = {v}")
+        except Exception as e:
+            print(f"  parse error: {e}")
+            print(f"  raw[:300]: {raw[:300]}")
+    else:
+        print("\n  (no __NEXT_DATA__)")
 
-
-async def test_strad_itxrest():
-    print("\n══════════════════════════════════════════════════")
-    print("TEST 2: Stradivarius itxrest — find Turkey store ID")
-    print("══════════════════════════════════════════════════")
-
-    proxy_dict = _proxy_dict()
-    headers = {
-        "User-Agent": _UA,
-        "Accept": "application/json, text/plain, */*",
-        "Accept-Language": "tr-TR,tr;q=0.9",
-        "Referer": STRAD_URL,
-    }
-
-    pid_variants = [STRAD_PID, "0" + STRAD_PID]
-
-    async with httpx.AsyncClient(
-        proxies=proxy_dict or None,
-        verify=False,
-        timeout=30,
-        follow_redirects=True,
-    ) as client:
-        for store_id in STRAD_STORE_IDS:
-            for pid in pid_variants:
-                url = (
-                    f"https://www.stradivarius.com/itxrest/2/catalog/store/{store_id}"
-                    f"/product/detail?physicalStoreId=null&productId={pid}&languageId=-39"
-                )
-                try:
-                    r = await client.get(url, headers=headers)
-                    ct = r.headers.get("content-type", "")
-                    if "json" in ct:
-                        try:
-                            body = r.json()
-                        except Exception:
-                            body = {"raw": r.text[:100]}
-                        status_mark = "✓" if r.status_code == 200 else f"✗({r.status_code})"
-                        print(f"  store={store_id} pid={pid}: {status_mark} → {_fmt_json(body)}")
-                        if r.status_code == 200:
-                            print(f"\n  *** FOUND WORKING CONFIG: store={store_id} pid={pid} ***")
-                            print(json.dumps(body, indent=2, ensure_ascii=False)[:2000])
-                            return
-                    else:
-                        if r.status_code != 404:
-                            print(f"  store={store_id} pid={pid}: {r.status_code} {ct[:30]}")
-                except Exception as e:
-                    print(f"  store={store_id} pid={pid}: ERROR {e}")
-
-
-async def test_zara_storelist():
-    """Fetch Zara's store list for Turkey to find the correct storeId."""
-    print("\n══════════════════════════════════════════════════")
-    print("TEST 3: Zara store list for Turkey (storeId discovery)")
-    print("══════════════════════════════════════════════════")
-
-    proxy_dict = _proxy_dict()
-    headers = {
-        "User-Agent": _UA,
-        "Accept": "application/json, text/plain, */*",
-    }
-
-    # Inditex store discovery endpoints
-    urls = [
-        "https://www.zara.com/itxrest/2/catalog/store/countries/languageId/-39",
-        "https://www.zara.com/itxrest/2/catalog/store?countryCode=TR&languageId=-39",
-        "https://www.zara.com/itxrest/3/store?countryCode=TR",
-        "https://www.zara.com/tr/tr/api/catalog/v1/stores?countryCode=TR",
-    ]
-
-    async with httpx.AsyncClient(
-        proxies=proxy_dict or None,
-        verify=False,
-        timeout=30,
-        follow_redirects=True,
-    ) as client:
-        for url in urls:
+    # ── 2. JSON-LD (schema.org) ───────────────────────────────────────────────
+    ld_matches = re.findall(
+        r'<script type="application/ld\+json">(.*?)</script>', r.text, re.DOTALL
+    )
+    if ld_matches:
+        found_anything = True
+        print(f"\n✓ JSON-LD blobs: {len(ld_matches)}")
+        for i, ld in enumerate(ld_matches):
             try:
-                r = await client.get(url, headers=headers)
-                ct = r.headers.get("content-type", "")
-                print(f"\n{url[-60:]}")
-                print(f"  Status: {r.status_code} | CT: {ct[:50]}")
-                if "json" in ct:
-                    try:
-                        body = r.json()
-                        print(f"  JSON: {_fmt_json(body)[:200]}")
-                    except Exception:
-                        print(f"  Body: {r.text[:200]}")
-                else:
-                    print(f"  Body: {r.text[:150]}")
+                data = json.loads(ld)
+                t = data.get("@type", "?")
+                print(f"  #{i+1} @type={t}")
+                if t in ("Product", "Offer"):
+                    print(f"    {json.dumps(data, ensure_ascii=False)[:800]}")
+                elif t == "ItemList":
+                    items = data.get("itemListElement", [])
+                    print(f"    {len(items)} items")
             except Exception as e:
-                print(f"  Error: {e}")
+                print(f"  #{i+1} parse error: {e}")
+    else:
+        print("  (no JSON-LD)")
+
+    # ── 3. Inline script state blobs ─────────────────────────────────────────
+    for pat in [
+        r'window\.__STATE__\s*=\s*(\{.*?\})\s*;',
+        r'window\.__INITIAL_STATE__\s*=\s*(\{.*?\})\s*;',
+        r'window\.__PRELOADED_STATE__\s*=\s*(\{.*?\})\s*;',
+    ]:
+        m2 = re.search(pat, r.text, re.DOTALL)
+        if m2:
+            found_anything = True
+            try:
+                data = json.loads(m2.group(1))
+                print(f"\n✓ {pat[:25]}... keys: {list(data.keys())[:10]}")
+                print(f"  {json.dumps(data, ensure_ascii=False)[:500]}")
+            except Exception:
+                print(f"\n✓ {pat[:25]}... (parse error)")
+
+    # ── 4. Any script mentioning price/stock ─────────────────────────────────
+    scripts = re.findall(r'<script(?:[^>]*)>(.*?)</script>', r.text, re.DOTALL)
+    for script in scripts:
+        lower = script.lower()
+        if any(k in lower for k in ('"price"', '"availability"', '"instock"', '"stocklevel"', 'fiyat', 'stok')):
+            # Try extracting JSON from the script
+            for json_pat in [r'(\{[^{}]{20,}\})', r'(\[[^\[\]]{20,}\])']:
+                for blob in re.findall(json_pat, script)[:5]:
+                    try:
+                        data = json.loads(blob)
+                        keys = list(data.keys()) if isinstance(data, dict) else []
+                        if any(k in keys for k in ("price", "availability", "inStock", "stockLevel")):
+                            found_anything = True
+                            print(f"\n✓ Inline price/stock JSON: {keys}")
+                            print(f"  {json.dumps(data, ensure_ascii=False)[:400]}")
+                    except Exception:
+                        pass
+
+    if not found_anything:
+        print("\nNo embedded JSON found. Raw HTML preview (800 chars):")
+        print(r.text[:800])
 
 
 async def main():
-    await test_zara_itxrest()
-    await test_strad_itxrest()
-    await test_zara_storelist()
+    proxy_dict = _proxy_dict()
+    async with httpx.AsyncClient(
+        proxies=proxy_dict or None,
+        verify=False,
+        timeout=30,
+        follow_redirects=True,
+    ) as client:
+        await test_site("Zara (httpx — ürün sayfası direkt)", ZARA_URL, client)
+        await test_site("Stradivarius (httpx — ürün sayfası direkt)", STRAD_URL, client)
 
 
 if __name__ == "__main__":
