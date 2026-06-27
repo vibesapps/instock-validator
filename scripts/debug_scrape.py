@@ -30,7 +30,7 @@ _HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:126.0) Gecko/20100101 Firefox/126.0",
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
     "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7",
-    "Accept-Encoding": "gzip, deflate, br",
+    "Accept-Encoding": "gzip, deflate",  # exclude br: httpx needs brotli lib installed
     "DNT": "1",
     "Upgrade-Insecure-Requests": "1",
 }
@@ -82,7 +82,7 @@ def _extract_data(html: str, label: str) -> None:
             t = data.get("@type", "?")
             print(f"  JSON-LD #{i+1} @type={t}")
             if t in ("Product", "Offer"):
-                print(f"    {json.dumps(data, ensure_ascii=False)[:600]}")
+                print(json.dumps(data, indent=2, ensure_ascii=False)[:2000])
         except Exception:
             pass
 
