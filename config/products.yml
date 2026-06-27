@@ -6,38 +6,37 @@
 products:
 
   # ── Zara ──────────────────────────────────────────────────────────────────
-  # URL formatı: https://www.zara.com/tr/en/urun-adi-pXXXXXXXX.html
-  # Örnek: https://www.zara.com/tr/en/floral-midi-dress-p02388128.html
 
-  - name: "Zara Ürün 1"
+  - name: "Zara Relaxed Fit Deri Ceket"
     brand: zara
-    url: "BURAYA_ZARA_URUN_URL_1"
-    sizes: ["XS", "S", "M", "L"]
+    url: "https://www.zara.com/tr/tr/relaxed-fit-deri-ceket-p05388330.html"
+    sizes: ["XS", "S", "M", "L", "XL"]
 
-  - name: "Zara Ürün 2"
+  - name: "Zara Regular Fit Dokulu Ceket"
     brand: zara
-    url: "BURAYA_ZARA_URUN_URL_2"
-    sizes: ["XS", "S", "M", "L"]
+    url: "https://www.zara.com/tr/tr/regular-fit-dokulu-ceket-p01437405.html"
+    sizes: ["XS", "S", "M", "L", "XL"]
 
-  - name: "Zara Ürün 3"
+  - name: "Zara Su Geçirmez Kapitone Ceket"
     brand: zara
-    url: "BURAYA_ZARA_URUN_URL_3"
-    sizes: ["34", "36", "38", "40"]
+    url: "https://www.zara.com/tr/tr/su-gecirmez-kapitone-ceket-p03918560.html"
+    sizes: ["XS", "S", "M", "L", "XL"]
 
   # ── Stradivarius ──────────────────────────────────────────────────────────
-  # URL formatı: https://www.stradivarius.com/tr/urun-adi-XXXXXXXXXXX.html
 
-  - name: "Stradivarius Ürün 1"
+  - name: "Stradivarius Düğmeli Dokumlu Gömlek (Renk 045)"
     brand: stradivarius
-    url: "BURAYA_STRAD_URUN_URL_1"
+    url: "https://www.stradivarius.com/tr/dugmeli-dokumlu-gomlek-l06226969?colorId=045"
     sizes: ["XS", "S", "M", "L"]
 
-  - name: "Stradivarius Ürün 2"
+  - name: "Stradivarius Düğmeli Dokumlu Gömlek (Renk 430)"
     brand: stradivarius
-    url: "BURAYA_STRAD_URUN_URL_2"
+    url: "https://www.stradivarius.com/tr/dugmeli-dokumlu-gomlek-l06226969?colorId=430"
     sizes: ["XS", "S", "M", "L"]
 
-  - name: "Stradivarius Ürün 3"
+  # NOT: Stradivarius 3. ürün bir kategori sayfasıydı, ürün sayfasıyla değiştir.
+  # Sweatshirt ürün sayfasından URL kopyalayıp buraya yapıştır:
+  - name: "Stradivarius Sweatshirt — URL GEREKLİ"
     brand: stradivarius
-    url: "BURAYA_STRAD_URUN_URL_3"
-    sizes: ["34", "36", "38", "40"]
+    url: "https://www.stradivarius.com/tr/BURAYA_SWEATSHIRT_URUN_URL"
+    sizes: ["XS", "S", "M", "L"]
