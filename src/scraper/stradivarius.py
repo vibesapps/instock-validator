@@ -53,7 +53,7 @@ class StradivariusScraper:
             async with self._browser.new_page() as page:
                 page.on("response", on_response)
 
-                resp = await page.goto(product.url, wait_until="networkidle", timeout=30_000)
+                resp = await page.goto(product.url, wait_until="domcontentloaded", timeout=30_000)
                 final_status = resp.status if resp else None
                 page_html = await page.content()
 
