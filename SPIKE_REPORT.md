@@ -81,59 +81,52 @@ Her ürün isteği kendi sticky session'ında (aynı çıkış IP'si) çalışı
 | BrightData fiyatı | $8 / GB |
 | VM fiyatı (GCE e2-small) | $14 / ay |
 
-### 4.2 Günlük Bant Genişliği Hesabı
+### 4.2 Gerçek Bant Genişliği (BrightData Dashboard Verisi)
 
-**Mevcut implementasyon:** 27 ürün-beden çifti → 27 ayrı fetch/tur.
-Aynı URL 4-5 kez (her beden için bir kez) çekiliyor.
+6 saatlik production testinden elde edilen **ölçülmüş** değerler:
 
-| Kaynak | Hesap | Bant genişliği |
-|--------|-------|----------------|
-| 15 Zara fetch/tur | 15 × (2.3 + 655) KB | 9.9 MB/tur |
-| 12 Stradivarius fetch/tur | 12 × (2.3 + 137) KB | 1.7 MB/tur |
-| **Tur başına toplam** | | **11.6 MB** |
-| **Günlük (48 tur)** | 48 × 11.6 MB | **~557 MB** |
+| Dönem | Toplam Trafik | Açıklama |
+|-------|--------------|----------|
+| 28 Haziran (6 saatlik test) | **28.1 MB** | Saatlik 2.3–4.4 MB arası |
+| Saatlik ortalama (5 tam saat) | **4.30 MB/saat** | 2 tur × 27 ürün-beden |
+| **Günlük projeksiyon** | **103 MB/gün** | Ölçüme dayalı |
 
-> Not: Hesap ham HTML boyutları üzerinden yapılmıştır (worst-case). BrightData sıkıştırılmış
-> byte üzerinden faturalandırıyorsa gerçek kullanım %20-30 daha düşük olabilir.
+**Ürün-beden başına gerçek proxy bant genişliği: ~80 KB/scrape** (2 HTTP isteği dahil).
+
+Ham HTML boyutları üzerinden yapılan ilk tahmin (557 MB/gün) **5.4x şişkindi.**
+Gerçek fark: `gzip` sıkıştırması ile Zara 655 KB → ~130 KB, Stradivarius 137 KB → ~27 KB
+düzeyine iniyor. BrightData sıkıştırılmış byte üzerinden faturalandırıyor.
 
 ### 4.3 Günlük ve Aylık Maliyet
 
-#### Mevcut Durum
+#### Senaryo Karşılaştırması
 
-| Kalem | Günlük | Aylık |
-|-------|--------|-------|
-| BrightData (0.557 GB × $8) | $4.46 | $133.8 |
-| GCE e2-small VM | $0.47 | $14.0 |
-| **Toplam** | **$4.93** | **$147.8** |
-| **Ürün başına** | **$0.82** | **$24.6** |
-| **Ürün-beden başına** | **$0.18** | **$5.5** |
+| Senaryo | BW/gün | BrightData | VM | **Toplam/gün** | **Ürün/gün** | **Ürün/ay** |
+|---------|--------|------------|----|--------------|-----------:|----------:|
+| 30dk, 27 fetch — **mevcut** | 103 MB | $0.83 | $0.47 | **$1.29** | **$0.22** | **$6.5** |
+| 30dk, 6 fetch — dedup | 23 MB | $0.18 | $0.47 | **$0.65** | **$0.11** | **$3.3** |
+| 2dk, 6 fetch — dedup | 344 MB | $2.75 | $0.47 | **$3.22** | **$0.54** | **$16.1** |
 
-#### Optimizasyon Sonrası (URL Deduplication)
+> **6 saatlik testin toplam BrightData maliyeti: $0.23**
 
-**Aynı URL birden fazla beden için tek seferde çekilir; tüm bedenlerin stok bilgisi
-tek HTML'den parse edilir.** Bu 6 fetch/tur'a düşürür (27 yerine).
+#### URL Dedup Optimizasyonu
 
-| Kalem | Günlük | Aylık |
-|-------|--------|-------|
-| BrightData (0.124 GB × $8) | $0.99 | $29.7 |
-| GCE e2-small VM | $0.47 | $14.0 |
-| **Toplam** | **$1.46** | **$43.7** |
-| **Ürün başına** | **$0.24** | **$7.3** |
-| **Ürün-beden başına** | **$0.05** | **$1.6** |
+Aynı URL birden fazla beden için tek seferde çekilir; tüm bedenlerin stok bilgisi
+tek HTML'den parse edilir. Bu 27 fetch/tur'u → 6 fetch/tur'a düşürür.
 
-**Tasarruf: $3.47/gün (%70 azalma) — kod değişikliği bir günlük iş.**
+**Tasarruf: $0.65/gün (%50 azalma) — mevcut durumdan bile ucuz, 2dk interval bile karşılanabilir.**
 
 ### 4.4 Ölçekleme Projeksiyonu
 
-100 ürün, her biri ortalama 4.5 beden → 450 product-size pair, 100 benzersiz URL.
-50 Zara + 50 Stradivarius karışımı varsayılarak:
+100 benzersiz URL (ürün), 50 Zara + 50 Stradivarius karışımı.
+Ölçülen 80 KB/scrape değeri baz alınmıştır:
 
-| Senaryo | BrightData (günlük) | VM | Toplam/gün | Ürün başına/gün |
-|---------|--------------------|----|------------|-----------------|
-| Mevcut (dedup yok) | $59.3 | $0.47 | $59.8 | $0.60 |
-| Optimize (dedup) | $13.2 | $0.47* | $13.7 | $0.14 |
+| Senaryo | BW/gün | BrightData | VM* | **Toplam/gün** | **Ürün/gün** |
+|---------|--------|------------|-----|--------------|------------|
+| 30dk, dedup, 100 ürün | 230 MB | $1.84 | $1.10 | $2.94 | $0.03 |
+| 2dk, dedup, 100 ürün | 3.45 GB | $27.6 | $1.10 | $28.7 | $0.29 |
 
-*100 üründe VM'in yükseltilmesi gerekebilir (e2-medium: ~$33/ay → $1.10/gün).
+*100 üründe VM yükseltmesi gerekebilir (e2-medium ~$33/ay).
 
 ---
 
