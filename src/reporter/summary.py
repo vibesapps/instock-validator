@@ -79,9 +79,13 @@ def generate_report(since: Optional[datetime] = None, path: Path = DB_PATH) -> d
 
         # Average lag: time since last successful scrape per product (in minutes)
         freshness = conn.execute("""
-            SELECT AVG((julianday('now') - julianday(MAX(timestamp))) * 1440) AS lag_min
-            FROM scrape_results WHERE success = 1
-            GROUP BY product_id
+            SELECT AVG((julianday('now') - julianday(last_ts)) * 1440) AS lag_min
+            FROM (
+                SELECT MAX(timestamp) AS last_ts
+                FROM scrape_results
+                WHERE success = 1
+                GROUP BY product_id
+            )
         """).fetchone()
         avg_lag_min = round(freshness["lag_min"], 1) if freshness and freshness["lag_min"] else None
 
